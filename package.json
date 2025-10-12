@@ -1,0 +1,68 @@
+{
+  "name": "deepfilternet3-noise-filter",
+  "version": "1.0.5",
+  "description": "Custom audio processor with DeepFilterNet3 noise filtering integrated with LiveKit client",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "module": "dist/index.esm.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "tsc --watch",
+    "prepublishOnly": "yarn build",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "lint:check": "eslint src --ext .ts,.tsx --max-warnings 0"
+  },
+  "keywords": [
+    "livekit",
+    "audio",
+    "streaming",
+    "noise-filter",
+    "deepfilternet3",
+    "webrtc",
+    "audio-processing"
+  ],
+  "author": "phuvinh010701",
+  "license": "MIT",
+  "dependencies": {
+    "livekit-client": "^2.0.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "@types/audioworklet": "^0.0.87",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.0",
+    "@typescript-eslint/parser": "^8.46.0",
+    "eslint": "^9.37.0",
+    "rollup": "^4.0.0",
+    "rollup-plugin-dts": "^6.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "packageManager": "yarn@1.22.22",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/phuvinh010701/livekit-deepfilternet3-noise-filter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/phuvinh010701/livekit-deepfilternet3-noise-filter/issues"
+  },
+  "homepage": "https://github.com/phuvinh010701/livekit-deepfilternet3-noise-filter#readme"
+}
