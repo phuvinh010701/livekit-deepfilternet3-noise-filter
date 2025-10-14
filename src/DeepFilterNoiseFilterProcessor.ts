@@ -1,4 +1,5 @@
 import { DeepFilterNet3Processor } from './DeepFilterNet3Processor';
+import type { TrackProcessor, AudioProcessorOptions, Track, Room } from "livekit-client";
 
 export interface DeepFilterNoiseFilterOptions {
   sampleRate?: number;
@@ -9,16 +10,16 @@ export interface DeepFilterNoiseFilterOptions {
   enabled?: boolean;
 }
 
-export class DeepFilterNoiseFilterProcessor {
+export class DeepFilterNoiseFilterProcessor implements TrackProcessor<Track.Kind.Audio, AudioProcessorOptions> {
   name = 'deepfilternet3-noise-filter';
-  processedTrack: MediaStreamTrack | null = null;
+  processedTrack?: MediaStreamTrack;
   audioContext: AudioContext | null = null;
   sourceNode: MediaStreamAudioSourceNode | null = null;
   workletNode: AudioWorkletNode | null = null;
   destination: MediaStreamAudioDestinationNode | null = null;
   processor: DeepFilterNet3Processor;
   enabled = true;
-  originalTrack: MediaStreamTrack | null = null;
+  originalTrack?: MediaStreamTrack;
 
   constructor(options: DeepFilterNoiseFilterOptions = {}) {
     const cfg = {

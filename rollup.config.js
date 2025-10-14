@@ -11,22 +11,22 @@ export default [
       {
         file: 'dist/index.js',
         format: 'cjs',
-        sourcemap: true,
+        sourcemap: 'inline',
       },
       {
         file: 'dist/index.esm.js',
         format: 'esm',
-        sourcemap: true,
+        sourcemap: 'inline',
       },
     ],
-    external: [],
+    external: ['livekit-client'],
     plugins: [
       nodeResolve(),
       commonjs(),
       typescript({
         tsconfig: './tsconfig.json',
         declaration: false,
-        sourceMap: true,
+        sourceMap: 'inline',
         target: 'ES2020',
       }),
     ],
@@ -38,7 +38,7 @@ export default [
     output: {
       file: 'dist/DeepFilterWorker.js',
       format: 'iife',
-      sourcemap: true,
+      sourcemap: 'inline',
     },
     plugins: [
       nodeResolve(),
@@ -46,7 +46,7 @@ export default [
       typescript({
         tsconfig: './tsconfig.json',
         declaration: false,
-        sourceMap: true,
+        sourceMap: 'inline',
         target: 'ES2020',
       }),
     ],
@@ -58,15 +58,15 @@ export default [
     output: {
       file: 'dist/DeepFilterWorklet.js',
       format: 'iife',
-      sourcemap: true,
+      sourcemap: 'inline',
     },
     plugins: [
       nodeResolve(),
       commonjs(),
       typescript({
-        tsconfig: './tsconfig.json',
+        tsconfig: './tsconfig.build.json',
         declaration: false,
-        sourceMap: true,
+        sourceMap: 'inline',
         target: 'ES2020',
       }),
     ],
@@ -85,5 +85,6 @@ export default [
         }
       })
     ],
+    external: ['livekit-client'],
   },
 ];
