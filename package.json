@@ -1,6 +1,6 @@
 {
   "name": "deepfilternet3-noise-filter",
-  "version": "1.0.5",
+  "version": "1.0.8",
   "description": "Custom audio processor with DeepFilterNet3 noise filtering integrated with LiveKit client",
   "type": "module",
   "main": "dist/index.js",

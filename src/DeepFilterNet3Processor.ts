@@ -17,9 +17,9 @@ export class DeepFilterNet3Processor {
   constructor(config: DeepFilterNet3ProcessorConfig = {}) {
     const { sampleRate = 48000, noiseReductionLevel = 50 } = config;
 
-    const bufferSize = sampleRate * 2 * 4;
-    this.rawSab = new SharedArrayBuffer(bufferSize);
-    this.denoisedSab = new SharedArrayBuffer(bufferSize);
+    const bufferSize = sampleRate * 2;
+    this.rawSab = new SharedArrayBuffer(8 + (bufferSize + 1) * 4);
+    this.denoisedSab = new SharedArrayBuffer(8 + (bufferSize + 1) * 4);
 
     this.workerManager = new WorkerManager({
       name: 'DF3Worker',
