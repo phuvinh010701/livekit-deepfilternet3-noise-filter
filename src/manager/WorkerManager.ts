@@ -21,6 +21,10 @@ export class WorkerManager {
   private static worker: Worker | null = null;
   private static assets: WorkerAssets | null = null;
 
+  private static workerReadyPromise: Promise<void> | null = null;
+  private static workerReadyResolve: (() => void) | null = null;
+
+
   private readonly config: WorkerConfig;
   private readonly assetLoader: AssetLoader;
 
@@ -50,6 +54,10 @@ export class WorkerManager {
       WorkerManager.worker.terminate();
     }
 
+    WorkerManager.workerReadyPromise = new Promise((resolve) => {
+      WorkerManager.workerReadyResolve = resolve;
+    });
+
     const worker = new Worker(new URL('./DeepFilterWorker.js', import.meta.url), {
       type: this.config.type,
       name: this.config.name
@@ -64,6 +72,10 @@ export class WorkerManager {
   private handleWorkerMessage(event: MessageEvent): void {
     if (event.data.type === WorkerMessageTypes.FETCH_WASM) {
       void this.sendAssetsToWorker();
+    }
+    else if (event.data.type === WorkerMessageTypes.SETUP_AWP) {
+      WorkerManager.workerReadyResolve?.();
+      WorkerManager.workerReadyResolve = null;
     }
   }
 
@@ -88,6 +100,12 @@ export class WorkerManager {
 
   static isWorkerReady(): boolean {
     return WorkerManager.worker !== null;
+  }
+
+  static async waitForWorkerReady(): Promise<void> {
+    if (WorkerManager.workerReadyPromise) {
+      await WorkerManager.workerReadyPromise;
+    }
   }
 
   static clearSharedWorker(): void {

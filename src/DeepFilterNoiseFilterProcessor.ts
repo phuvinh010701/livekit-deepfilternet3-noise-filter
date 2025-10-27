@@ -1,5 +1,6 @@
 import { DeepFilterNet3Processor } from './DeepFilterNet3Processor';
-import type { TrackProcessor, AudioProcessorOptions, Track, Room } from "livekit-client";
+import type { TrackProcessor, AudioProcessorOptions, Track } from 'livekit-client';
+import { WorkerManager } from './manager/WorkerManager';
 
 export interface DeepFilterNoiseFilterOptions {
   sampleRate?: number;
@@ -88,6 +89,7 @@ export class DeepFilterNoiseFilterProcessor implements TrackProcessor<Track.Kind
     }
 
     await this.processor.initialize();
+    await WorkerManager.waitForWorkerReady();
     const node = await this.processor.createAudioWorkletNode(this.audioContext);
 
     this.sourceNode = this.audioContext.createMediaStreamSource(new MediaStream([this.originalTrack]));

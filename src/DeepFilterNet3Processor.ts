@@ -45,7 +45,7 @@ export class DeepFilterNet3Processor {
 
   async createAudioWorkletNode(audioContext: AudioContext): Promise<AudioWorkletNode> {
     this.ensureInitialized();
-
+    await WorkerManager.waitForWorkerReady();
     const workletUrl = new URL('./DeepFilterWorklet.js', import.meta.url);
     await audioContext.audioWorklet.addModule(workletUrl);
 

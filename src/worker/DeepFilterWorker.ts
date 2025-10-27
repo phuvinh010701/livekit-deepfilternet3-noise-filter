@@ -15,7 +15,7 @@ let interval: number | null = null;
 let bypass = false;
 const suppression_level = 50;
 
-async function readFromQueue(): Promise<number> {
+function readFromQueue(): number {
   if (!_audio_reader || !_audio_writer || !df_model) return 0;
 
   if (_audio_reader.availableRead() < frame_length) {
@@ -55,7 +55,7 @@ self.onmessage = async (e: MessageEvent): Promise<void> => {
         frame_length = wasm_bindgen.df_get_frame_length(df_model);
         rawStorage = new Float32Array(frame_length);
 
-        interval = setInterval(() => void readFromQueue(), 0) as unknown as number;
+        interval = setInterval(readFromQueue, 0) as unknown as number;
         self.postMessage({ type: WorkerMessageTypes.SETUP_AWP });
       } catch (error) {
         self.postMessage({
