@@ -1,3 +1,9 @@
+## [1.0.2](https://github.com/phuvinh010701/livekit-deepfilternet3-noise-filter/compare/v1.0.1...v1.0.2) (2025-10-28)
+
+### Bug Fixes
+
+* manual bump version ([a07ff75](https://github.com/phuvinh010701/livekit-deepfilternet3-noise-filter/commit/a07ff7594985d9266c119b6a30d1ccab9d3380f4))
+
 ## [1.0.1](https://github.com/phuvinh010701/livekit-deepfilternet3-noise-filter/compare/v1.0.0...v1.0.1) (2025-10-28)
 
 ### Bug Fixes
