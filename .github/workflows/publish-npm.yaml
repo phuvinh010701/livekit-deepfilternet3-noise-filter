@@ -21,9 +21,12 @@ jobs:
         with:
           node-version: '22.14.0'
           registry-url: 'https://registry.npmjs.org'
-      - run: npm ci
+          cache: 'yarn'
+          
+      - run: yarn --frozen-lockfile
+
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN:    ${{ secrets.NPM_PUBLISH_TOKEN }}
+          NPM_TOKEN:    ${{ secrets.NPM_TOKEN }}
         run: npx semantic-release
