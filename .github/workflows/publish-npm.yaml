@@ -25,6 +25,10 @@ jobs:
 
       - run: yarn --frozen-lockfile
 
+      - name: Setup .npmrc for authentication
+        run: |
+          echo "//registry.npmjs.org/:_authToken=\${NPM_TOKEN}" > .npmrc
+
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
