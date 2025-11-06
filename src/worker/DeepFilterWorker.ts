@@ -6,43 +6,45 @@ import type { DeepFilterModel } from './WorkerTypes';
 declare const self: WorkerGlobalScope & typeof globalThis;
 export {};
 
-let frame_length: number;
-let df_model: DeepFilterModel | null = null;
-let _audio_reader: ringbuffer.AudioReader | null = null;
-let _audio_writer: ringbuffer.AudioWriter | null = null;
+/** Default suppression level if not provided */
+const DEFAULT_SUPPRESSION_LEVEL = 50;
+
+let frameLength: number;
+let dfModel: DeepFilterModel | null = null;
+let audioReader: ringbuffer.AudioReader | null = null;
+let audioWriter: ringbuffer.AudioWriter | null = null;
 let rawStorage: Float32Array;
 let interval: number | null = null;
 let bypass = false;
-const suppression_level = 50;
 
 function readFromQueue(): number {
-  if (!_audio_reader || !_audio_writer || !df_model) return 0;
+  if (!audioReader || !audioWriter || !dfModel) return 0;
 
-  if (_audio_reader.availableRead() < frame_length) {
+  if (audioReader.availableRead() < frameLength) {
     return 0;
   }
 
-  const samples_read = _audio_reader.dequeue(rawStorage);
-  const input_frame = rawStorage.subarray(0, samples_read);
+  const samplesRead = audioReader.dequeue(rawStorage);
+  const inputFrame = rawStorage.subarray(0, samplesRead);
 
-  const output_frame = bypass
-    ? input_frame
-    : wasm_bindgen.df_process_frame(df_model, input_frame);
+  const outputFrame = bypass
+    ? inputFrame
+    : wasm_bindgen.df_process_frame(dfModel, inputFrame);
 
-  _audio_writer.enqueue(output_frame);
+  audioWriter.enqueue(outputFrame);
 
-  return samples_read;
+  return samplesRead;
 }
 
 
 self.onmessage = async (e: MessageEvent): Promise<void> => {
   switch (e.data.command) {
     case WorkerMessageTypes.INIT: {
-      _audio_reader = new ringbuffer.AudioReader(
+      audioReader = new ringbuffer.AudioReader(
         new ringbuffer.RingBuffer(e.data.rawSab, Float32Array)
       );
 
-      _audio_writer = new ringbuffer.AudioWriter(
+      audioWriter = new ringbuffer.AudioWriter(
         new ringbuffer.RingBuffer(e.data.denoisedSab, Float32Array)
       );
 
@@ -50,10 +52,10 @@ self.onmessage = async (e: MessageEvent): Promise<void> => {
         wasm_bindgen.initSync(e.data.bytes);
 
         const uint8Array = new Uint8Array(e.data.model_bytes);
-        df_model = wasm_bindgen.df_create(uint8Array, e.data.suppression_level ?? suppression_level);
+        dfModel = wasm_bindgen.df_create(uint8Array, e.data.suppression_level ?? DEFAULT_SUPPRESSION_LEVEL);
 
-        frame_length = wasm_bindgen.df_get_frame_length(df_model);
-        rawStorage = new Float32Array(frame_length);
+        frameLength = wasm_bindgen.df_get_frame_length(dfModel);
+        rawStorage = new Float32Array(frameLength);
 
         interval = setInterval(readFromQueue, 0) as unknown as number;
         self.postMessage({ type: WorkerMessageTypes.SETUP_AWP });
@@ -67,8 +69,8 @@ self.onmessage = async (e: MessageEvent): Promise<void> => {
     }
     case WorkerMessageTypes.SET_SUPPRESSION_LEVEL: {
       const newLevel = e.data.level;
-      if (df_model && typeof newLevel === 'number' && newLevel >= 0 && newLevel <= 100) {
-        wasm_bindgen.df_set_atten_lim(df_model, newLevel);
+      if (dfModel && typeof newLevel === 'number' && newLevel >= 0 && newLevel <= 100) {
+        wasm_bindgen.df_set_atten_lim(dfModel, newLevel);
       }
       break;
     }

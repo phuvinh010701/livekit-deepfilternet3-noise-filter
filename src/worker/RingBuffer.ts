@@ -1,51 +1,27 @@
-/**
- * Interleaved -> Planar audio buffer conversion
- *
- * This is useful to get data from a codec, the network, or anything that is
- * interleaved, into a planar format, for example a Web Audio API AudioBuffer or
- * the output parameter of an AudioWorkletProcessor.
- *
- * @param {Float32Array} input is an array of n*128 frames arrays, interleaved,
- * where n is the channel count.
- * @param {Float32Array} output is an array of 128-frames arrays.
- */
-export function deinterleave(input: Float32Array, output: Float32Array[]): void {
-  const channel_count = input.length / 128;
-  if (output.length !== channel_count) {
-    throw RangeError('not enough space in output arrays');
-  }
-  for (let i = 0; i < channel_count; i++) {
-    const out_channel = output[i];
-    let interleaved_idx = i;
-    for (let j = 0; j < 128; ++j) {
-      out_channel[j] = input[interleaved_idx];
-      interleaved_idx += channel_count;
-    }
-  }
-}
+/** Size of ring buffer header (read and write pointers) in bytes */
+const RING_BUFFER_HEADER_SIZE = 8;
 
-/**
- * Planar -> Interleaved audio buffer conversion
- *
- * This function is useful to get data from the Web Audio API (that uses a
- * planar format), into something that a codec or network streaming library
- * would expect.
- *
- * @param {Float32Array} input An array of n*128 frames Float32Array that hold the audio data.
- * @param {Float32Array} output A Float32Array that is n*128 elements long.
- */
-export function interleave(input: Float32Array[], output: Float32Array): void {
-  if (input.length * 128 !== output.length) {
-    throw RangeError('input and output of incompatible sizes');
-  }
-  let out_idx = 0;
-  for (let i = 0; i < 128; i++) {
-    for (let channel = 0; channel < input.length; channel++) {
-      output[out_idx] = input[channel][i];
-      out_idx++;
-    }
-  }
-}
+/** Type representing typed array constructors */
+type TypedArrayConstructor =
+  | Int8ArrayConstructor
+  | Uint8ArrayConstructor
+  | Int16ArrayConstructor
+  | Uint16ArrayConstructor
+  | Int32ArrayConstructor
+  | Uint32ArrayConstructor
+  | Float32ArrayConstructor
+  | Float64ArrayConstructor;
+
+/** Type representing typed array instances */
+type TypedArray =
+  | Int8Array
+  | Uint8Array
+  | Int16Array
+  | Uint16Array
+  | Int32Array
+  | Uint32Array
+  | Float32Array
+  | Float64Array;
 
 /** The base RingBuffer class
  *
@@ -54,41 +30,36 @@ export function interleave(input: Float32Array[], output: Float32Array): void {
  * The producer and the consumer can be on separate threads, but cannot change roles,
  * except with external synchronization.
  */
-export class RingBuffer {
-  private _type: any;
-  private _capacity: number;
-  private buf: SharedArrayBuffer;
-  private write_ptr: Uint32Array;
-  private read_ptr: Uint32Array;
-  private storage: any;
+export class RingBuffer<T extends TypedArray = Float32Array> {
+  private readonly _type: TypedArrayConstructor;
+  private readonly _capacity: number;
+  private readonly buf: SharedArrayBuffer;
+  private readonly write_ptr: Uint32Array;
+  private readonly read_ptr: Uint32Array;
+  private readonly storage: T;
 
   /** Allocate the SharedArrayBuffer for a RingBuffer, based on the type and
    * capacity required
-   * @param {number} capacity The number of elements the ring buffer will be
-   * able to hold.
-   * @param {TypedArray} type A typed array constructor, the type that this ring
-   * buffer will hold.
-   * @return {SharedArrayBuffer} A SharedArrayBuffer of the right size.
-   * @static
+   * @param capacity The number of elements the ring buffer will be able to hold.
+   * @param type A typed array constructor, the type that this ring buffer will hold.
+   * @return A SharedArrayBuffer of the right size.
    */
-  static getStorageForCapacity(capacity: number, type: any): SharedArrayBuffer {
+  static getStorageForCapacity(capacity: number, type: TypedArrayConstructor): SharedArrayBuffer {
     if (!type.BYTES_PER_ELEMENT) {
-      throw TypeError('Pass in a ArrayBuffer subclass');
+      throw new TypeError('Pass in a TypedArray subclass');
     }
-    const bytes = 8 + (capacity + 1) * type.BYTES_PER_ELEMENT;
+    const bytes = RING_BUFFER_HEADER_SIZE + (capacity + 1) * type.BYTES_PER_ELEMENT;
     return new SharedArrayBuffer(bytes);
   }
 
   /**
    * @constructor
-   * @param {SharedArrayBuffer} sab A SharedArrayBuffer obtained by calling
-   * {@link RingBuffer.getStorageFromCapacity}.
-   * @param {TypedArray} type A typed array constructor, the type that this ring
-   * buffer will hold.
+   * @param sab A SharedArrayBuffer obtained by calling {@link RingBuffer.getStorageFromCapacity}.
+   * @param type A typed array constructor, the type that this ring buffer will hold.
    */
-  constructor(sab: SharedArrayBuffer, type: any) {
+  constructor(sab: SharedArrayBuffer, type: TypedArrayConstructor) {
     if (type.BYTES_PER_ELEMENT === undefined) {
-      throw TypeError('Pass a concrete typed array class as second argument');
+      throw new TypeError('Pass a concrete typed array class as second argument');
     }
 
     // Maximum usable size is 1<<32 - type.BYTES_PER_ELEMENT bytes in the ring
@@ -97,11 +68,11 @@ export class RingBuffer {
     // -4 for the read ptr (uint32_t offsets)
     // capacity counts the empty slot to distinguish between full and empty.
     this._type = type;
-    this._capacity = (sab.byteLength - 8) / type.BYTES_PER_ELEMENT;
+    this._capacity = (sab.byteLength - RING_BUFFER_HEADER_SIZE) / type.BYTES_PER_ELEMENT;
     this.buf = sab;
-    this.write_ptr = new Uint32Array(this.buf, 0, 1);
-    this.read_ptr = new Uint32Array(this.buf, 4, 1);
-    this.storage = new type(this.buf, 8, this._capacity);
+    this.write_ptr = new Uint32Array(sab, 0, 1);
+    this.read_ptr = new Uint32Array(sab, 4, 1);
+    this.storage = new type(sab, RING_BUFFER_HEADER_SIZE, this._capacity) as T;
   }
 
   /**
@@ -114,131 +85,33 @@ export class RingBuffer {
 
   /**
    * Push elements to the ring buffer.
-   * @param {TypedArray} elements A typed array of the same type as passed in the ctor, to be written to the queue.
-   * @param {Number} length If passed, the maximum number of elements to push.
+   * @param elements A typed array of the same type as passed in the ctor, to be written to the queue.
+   * @param length If passed, the maximum number of elements to push.
    * If not passed, all elements in the input array are pushed.
-   * @param {Number} offset If passed, a starting index in elements from which
+   * @param offset If passed, a starting index in elements from which
    * the elements are read. If not passed, elements are read from index 0.
    * @return the number of elements written to the queue.
    */
-  push(elements: any, length?: number, offset: number = 0): number {
+  push(elements: T, length?: number, offset: number = 0): number {
     const rd = Atomics.load(this.read_ptr, 0);
     const wr = Atomics.load(this.write_ptr, 0);
 
-    if ((wr + 1) % this._storage_capacity() === rd) {
+    if ((wr + 1) % this.storageCapacity() === rd) {
       // full
       return 0;
     }
 
     const len = length ?? elements.length;
-    const to_write = Math.min(this._available_write(rd, wr), len);
-    const first_part = Math.min(this._storage_capacity() - wr, to_write);
-    const second_part = to_write - first_part;
+    const toWrite = Math.min(this.availableWriteInternal(rd, wr), len);
+    const firstPart = Math.min(this.storageCapacity() - wr, toWrite);
+    const secondPart = toWrite - firstPart;
 
-    this._copy(elements, offset, this.storage, wr, first_part);
-    this._copy(elements, offset + first_part, this.storage, 0, second_part);
-
-    // publish the enqueued data to the other side
-    Atomics.store(this.write_ptr, 0, (wr + to_write) % this._storage_capacity());
-    return to_write;
-  }
-
-  /**
-   * Write bytes to the ring buffer using callbacks. This create wrapper
-   * objects and can GC, so it's best to no use this variant from a real-time
-   * thread such as an AudioWorklerProcessor `process` method.
-   * The callback is passed two typed arrays of the same type, to be filled.
-   * This allows skipping copies if the API that produces the data writes is
-   * passed arrays to write to, such as `AudioData.copyTo`.
-   * @param {number} amount The maximum number of elements to write to the ring
-   * buffer. If amount is more than the number of slots available for writing,
-   * then the number of slots available for writing will be made available: no
-   * overwriting of elements can happen.
-   * @param {Function} cb A callback with two parameters, that are two typed
-   * array of the correct type, in which the data need to be copied. If the
-   * callback doesn't return anything, it is assumed all the elements
-   * have been written to. Otherwise, it is assumed that the returned number is
-   * the number of elements that have been written to, and those elements have
-   * been written started at the beginning of the requested buffer space.
-   *
-   * @return The number of elements written to the queue.
-   */
-  writeCallback(amount: number, cb: () => number | void): number {
-    const rd = Atomics.load(this.read_ptr, 0);
-    const wr = Atomics.load(this.write_ptr, 0);
-
-    if ((wr + 1) % this._storage_capacity() === rd) {
-      // full
-      return 0;
-    }
-
-    const to_write = Math.min(this._available_write(rd, wr), amount);
-    const first_part = Math.min(this._storage_capacity() - wr, to_write);
-    const second_part = to_write - first_part;
-
-    // This part will cause GC: don't use in the real time thread.
-    // Variables are created but not used in this callback-based approach
-    void new this._type(
-      this.storage.buffer,
-      8 + wr * this.storage.BYTES_PER_ELEMENT,
-      first_part
-    );
-    void new this._type(
-      this.storage.buffer,
-      8 + 0,
-      second_part
-    );
-
-    const written = cb() ?? to_write;
+    this.copy(elements, offset, this.storage, wr, firstPart);
+    this.copy(elements, offset + firstPart, this.storage, 0, secondPart);
 
     // publish the enqueued data to the other side
-    Atomics.store(this.write_ptr, 0, (wr + written) % this._storage_capacity());
-    return written;
-  }
-
-  /**
-   * Write bytes to the ring buffer using a callback.
-   *
-   * This allows skipping copies if the API that produces the data writes is
-   * passed arrays to write to, such as `AudioData.copyTo`.
-   *
-   * @param {number} amount The maximum number of elements to write to the ring
-   * buffer. If amount is more than the number of slots available for writing,
-   * then the number of slots available for writing will be made available: no
-   * overwriting of elements can happen.
-   * @param {Function} cb A callback with five parameters:
-   *
-   * (1) The internal storage of the ring buffer as a typed array
-   * (2) An offset to start writing from
-   * (3) A number of elements to write at this offset
-   * (4) Another offset to start writing from
-   * (5) A number of elements to write at this second offset
-   *
-   * If the callback doesn't return anything, it is assumed all the elements
-   * have been written to. Otherwise, it is assumed that the returned number is
-   * the number of elements that have been written to, and those elements have
-   * been written started at the beginning of the requested buffer space.
-   * @return The number of elements written to the queue.
-   */
-  writeCallbackWithOffset(amount: number, cb: () => number | void): number {
-    const rd = Atomics.load(this.read_ptr, 0);
-    const wr = Atomics.load(this.write_ptr, 0);
-
-    if ((wr + 1) % this._storage_capacity() === rd) {
-      // full
-      return 0;
-    }
-
-    const to_write = Math.min(this._available_write(rd, wr), amount);
-    const first_part = Math.min(this._storage_capacity() - wr, to_write);
-    // Calculate second_part but don't use it in this callback approach
-    void (to_write - first_part);
-
-    const written = cb() ?? to_write;
-
-    // publish the enqueued data to the other side
-    Atomics.store(this.write_ptr, 0, (wr + written) % this._storage_capacity());
-    return written;
+    Atomics.store(this.write_ptr, 0, (wr + toWrite) % this.storageCapacity());
+    return toWrite;
   }
 
   /**
@@ -246,16 +119,12 @@ export class RingBuffer {
    * array of the same type as passed in the ctor.
    * Returns the number of elements read from the queue, they are placed at the
    * beginning of the array passed as parameter.
-   * @param {TypedArray} elements An array in which the elements read from the
-   * queue will be written, starting at the beginning of the array.
-   * @param {Number} length If passed, the maximum number of elements to pop. If
-   * not passed, up to elements.length are popped.
-   * @param {Number} offset If passed, an index in elements in which the data is
-   * written to. `elements.length - offset` must be greater or equal to
-   * `length`.
+   * @param elements An array in which the elements read from the queue will be written, starting at the beginning of the array.
+   * @param length If passed, the maximum number of elements to pop. If not passed, up to elements.length are popped.
+   * @param offset If passed, an index in elements in which the data is written to. `elements.length - offset` must be greater or equal to `length`.
    * @return The number of elements read from the queue.
    */
-  pop(elements: any, length?: number, offset: number = 0): number {
+  pop(elements: T, length?: number, offset: number = 0): number {
     const rd = Atomics.load(this.read_ptr, 0);
     const wr = Atomics.load(this.write_ptr, 0);
 
@@ -264,15 +133,15 @@ export class RingBuffer {
     }
 
     const len = length ?? elements.length;
-    const to_read = Math.min(this._available_read(rd, wr), len);
-    const first_part = Math.min(this._storage_capacity() - rd, to_read);
-    const second_part = to_read - first_part;
+    const toRead = Math.min(this.availableReadInternal(rd, wr), len);
+    const firstPart = Math.min(this.storageCapacity() - rd, toRead);
+    const secondPart = toRead - firstPart;
 
-    this._copy(this.storage, rd, elements, offset, first_part);
-    this._copy(this.storage, 0, elements, offset + first_part, second_part);
+    this.copy(this.storage, rd, elements, offset, firstPart);
+    this.copy(this.storage, 0, elements, offset + firstPart, secondPart);
 
-    Atomics.store(this.read_ptr, 0, (rd + to_read) % this._storage_capacity());
-    return to_read;
+    Atomics.store(this.read_ptr, 0, (rd + toRead) % this.storageCapacity());
+    return toRead;
   }
 
   /**
@@ -293,7 +162,7 @@ export class RingBuffer {
   full(): boolean {
     const rd = Atomics.load(this.read_ptr, 0);
     const wr = Atomics.load(this.write_ptr, 0);
-    return (wr + 1) % this._storage_capacity() === rd;
+    return (wr + 1) % this.storageCapacity() === rd;
   }
 
   /**
@@ -312,9 +181,8 @@ export class RingBuffer {
   availableRead(): number {
     const rd = Atomics.load(this.read_ptr, 0);
     const wr = Atomics.load(this.write_ptr, 0);
-    return this._available_read(rd, wr);
+    return this.availableReadInternal(rd, wr);
   }
-
 
   /**
    * @return The number of elements available for writing. This can be late, and
@@ -324,7 +192,7 @@ export class RingBuffer {
   availableWrite(): number {
     const rd = Atomics.load(this.read_ptr, 0);
     const wr = Atomics.load(this.write_ptr, 0);
-    return this._available_write(rd, wr);
+    return this.availableWriteInternal(rd, wr);
   }
 
 
@@ -333,43 +201,39 @@ export class RingBuffer {
   /**
    * @return Number of elements available for reading, given a read and write
    * pointer.
-   * @private
    */
-  private _available_read(rd: number, wr: number): number {
-    return (wr + this._storage_capacity() - rd) % this._storage_capacity();
+  private availableReadInternal(rd: number, wr: number): number {
+    return (wr + this.storageCapacity() - rd) % this.storageCapacity();
   }
 
   /**
    * @return Number of elements available from writing, given a read and write
    * pointer.
-   * @private
    */
-  private _available_write(rd: number, wr: number): number {
-    return this.capacity() - this._available_read(rd, wr);
+  private availableWriteInternal(rd: number, wr: number): number {
+    return this.capacity() - this.availableReadInternal(rd, wr);
   }
 
   /**
    * @return The size of the storage for elements not accounting the space for
    * the index, counting the empty slot.
-   * @private
    */
-  private _storage_capacity(): number {
+  private storageCapacity(): number {
     return this._capacity;
   }
 
   /**
-   * Copy `size` elements from `input`, starting at offset `offset_input`, to
-   * `output`, starting at offset `offset_output`.
-   * @param {TypedArray} input The array to copy from
-   * @param {Number} offset_input The index at which to start the copy
-   * @param {TypedArray} output The array to copy to
-   * @param {Number} offset_output The index at which to start copying the elements to
-   * @param {Number} size The number of elements to copy
-   * @private
+   * Copy `size` elements from `input`, starting at offset `offsetInput`, to
+   * `output`, starting at offset `offsetOutput`.
+   * @param input The array to copy from
+   * @param offsetInput The index at which to start the copy
+   * @param output The array to copy to
+   * @param offsetOutput The index at which to start copying the elements to
+   * @param size The number of elements to copy
    */
-  private _copy(input: any, offset_input: number, output: any, offset_output: number, size: number): void {
+  private copy(input: T, offsetInput: number, output: T, offsetOutput: number, size: number): void {
     for (let i = 0; i < size; i++) {
-      output[offset_output + i] = input[offset_input + i];
+      output[offsetOutput + i] = input[offsetInput + i];
     }
   }
 }
@@ -479,115 +343,3 @@ export class AudioReader {
   }
 }
 
-/**
- * Send parameter changes, lock free, no gc, between a UI thread (browser
- * main thread or worker) and a real-time thread (in an AudioWorkletProcessor).
- * Write and Reader cannot change role after setup, unless externally
- * synchronized.
- *
- * GC _can_ happen during the initial construction of this object when hopefully
- * no audio is being output. This depends on the implementation.
- *
- * Parameter changes are like in the VST framework: an index and a float value
- * (no restriction on the value).
- *
- * This class supports up to 256 parameters, but this is easy to extend if
- * needed.
- *
- * An element is an index, that is an unsigned byte, and a float32, which is 4
- * bytes.
- */
-export class ParameterWriter {
-  private ringbuf: RingBuffer;
-  private mem: ArrayBuffer;
-  private array: Uint8Array;
-  private view: DataView;
-
-  /**
-   * From a RingBuffer, build an object that can enqueue a parameter change in
-   * the queue.
-   * @param {RingBuffer} ringbuf A RingBuffer object of Uint8Array.
-   * @constructor
-   */
-  constructor(ringbuf: RingBuffer) {
-    if (ringbuf.type() !== 'Uint8Array') {
-      throw TypeError('This class requires a ring buffer of Uint8Array');
-    }
-    const SIZE_ELEMENT = 5;
-    this.ringbuf = ringbuf;
-    this.mem = new ArrayBuffer(SIZE_ELEMENT);
-    this.array = new Uint8Array(this.mem);
-    this.view = new DataView(this.mem);
-  }
-
-  /*
-   * Enqueue a parameter change for parameter of index `index`, with a new value
-   * of `value`.
-   *
-   * @param {number} index The index of the parameter.
-   * @param {number} value The value of the parameter.
-   * @return True if enqueuing suceeded, false otherwise.
-   */
-  enqueue_change(index: number, value: number): boolean {
-    const SIZE_ELEMENT = 5;
-    this.view.setUint8(0, index);
-    this.view.setFloat32(1, value);
-    if (this.ringbuf.availableWrite() < SIZE_ELEMENT) {
-      return false;
-    }
-    return this.ringbuf.push(this.array) === SIZE_ELEMENT;
-  }
-}
-
-/**
- * Receive parameter changes, lock free, no gc, between a UI thread (browser
- * main thread or worker) and a real-time thread (in an AudioWorkletProcessor).
- * Write and Reader cannot change role after setup, unless externally
- * synchronized.
- *
- * GC _can_ happen during the initial construction of this object when hopefully
- * no audio is being output. This depends on the implementation.
- *
- * Parameter changes are like in the VST framework: an index and a float value
- * (no restriction on the value).
- *
- * This class supports up to 256 parameters, but this is easy to extend if
- * needed.
- *
- * An element is an index, that is an unsigned byte, and a float32, which is 4
- * bytes.
- */
-export class ParameterReader {
-  private ringbuf: RingBuffer;
-  private mem: ArrayBuffer;
-  private array: Uint8Array;
-  private view: DataView;
-
-  /**
-   * @constructor
-   * @param {RingBuffer} ringbuf A RingBuffer setup to hold Uint8.
-   */
-  constructor(ringbuf: RingBuffer) {
-    const SIZE_ELEMENT = 5;
-    this.ringbuf = ringbuf;
-    this.mem = new ArrayBuffer(SIZE_ELEMENT);
-    this.array = new Uint8Array(this.mem);
-    this.view = new DataView(this.mem);
-  }
-
-  /**
-   * Attempt to dequeue a single parameter change.
-   * @param {Object} o An object with two attributes: `index` and `value`.
-   * @return true if a parameter change has been dequeued, false otherwise.
-   */
-  dequeue_change(o: { index: number; value: number }): boolean {
-    if (this.ringbuf.empty()) {
-      return false;
-    }
-    const rv = this.ringbuf.pop(this.array);
-    o.index = this.view.getUint8(0);
-    o.value = this.view.getFloat32(1);
-
-    return rv === this.array.length;
-  }
-}

@@ -2,12 +2,15 @@ import { DeepFilterNet3Processor } from './DeepFilterNet3Processor';
 import type { TrackProcessor, AudioProcessorOptions, Track } from 'livekit-client';
 import { WorkerManager } from './manager/WorkerManager';
 
+/** Default sample rate for audio processing */
+const DEFAULT_SAMPLE_RATE = 48000;
+
+/** Default noise reduction level for LiveKit processor */
+const DEFAULT_NOISE_REDUCTION_LEVEL = 80;
+
 export interface DeepFilterNoiseFilterOptions {
   sampleRate?: number;
-  frameSize?: number;
-  enableNoiseReduction?: boolean;
   noiseReductionLevel?: number;
-  assetResolver?: unknown;
   enabled?: boolean;
 }
 
@@ -24,8 +27,8 @@ export class DeepFilterNoiseFilterProcessor implements TrackProcessor<Track.Kind
 
   constructor(options: DeepFilterNoiseFilterOptions = {}) {
     const cfg = {
-      sampleRate: options.sampleRate ?? 48000,
-      noiseReductionLevel: options.noiseReductionLevel ?? 80
+      sampleRate: options.sampleRate ?? DEFAULT_SAMPLE_RATE,
+      noiseReductionLevel: options.noiseReductionLevel ?? DEFAULT_NOISE_REDUCTION_LEVEL
     };
 
     this.enabled = options.enabled ?? true;
@@ -78,13 +81,13 @@ export class DeepFilterNoiseFilterProcessor implements TrackProcessor<Track.Kind
       throw new Error('No source track');
     }
 
-    this.audioContext ??= new AudioContext({ sampleRate: 48000 });
+    this.audioContext ??= new AudioContext({ sampleRate: DEFAULT_SAMPLE_RATE });
 
     if (this.audioContext.state !== 'running') {
       try {
         await this.audioContext.resume();
-      } catch {
-        // Ignore resume errors
+      } catch (error) {
+        console.warn('Failed to resume AudioContext:', error instanceof Error ? error.message : String(error));
       }
     }
 
@@ -116,8 +119,8 @@ export class DeepFilterNoiseFilterProcessor implements TrackProcessor<Track.Kind
         this.destination.disconnect();
         this.destination = null;
       }
-    } catch {
-      // Ignore disconnect errors
+    } catch (error) {
+      console.warn('Error during audio graph teardown:', error instanceof Error ? error.message : String(error));
     }
   }
 }

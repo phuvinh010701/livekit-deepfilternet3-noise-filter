@@ -1,18 +1,6 @@
-import type * as RingBuffer from './RingBuffer';
 import { WorkerMessageTypes } from './WorkerMessageTypes';
 
 export type DeepFilterModel = number;
-
-export interface WorkerState {
-  frameLength: number;
-  model: DeepFilterModel;
-  audioReader: RingBuffer.AudioReader;
-  audioWriter: RingBuffer.AudioWriter;
-  rawStorage: Float32Array;
-  interval: number;
-  bypass: boolean;
-  suppressionLevel: number;
-}
 
 export interface InitMessage {
   command: typeof WorkerMessageTypes.INIT;
