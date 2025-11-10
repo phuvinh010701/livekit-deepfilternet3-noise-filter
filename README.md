@@ -86,7 +86,19 @@ function AudioProcessor({ stream, level = 50 }) {
 }
 ```
 
-**No configuration needed** - WebAssembly files are automatically loaded from CDN!
+**No configuration needed** - WebAssembly files and worker code are automatically handled!
+
+## Bundler Compatibility
+
+This package works out-of-the-box with all modern bundlers:
+
+- **Webpack** (4, 5+)
+- **Vite**
+- **Rollup**
+- **esbuild**
+- **Parcel**
+
+Worker and worklet files are automatically inlined as blob URLs, so **no webpack configuration or copy plugins are required**. Just `npm install` and use!
 
 ### LiveKit Integration
 
