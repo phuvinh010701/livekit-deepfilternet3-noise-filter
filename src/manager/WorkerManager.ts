@@ -1,5 +1,8 @@
 import { AssetLoader, AssetConfig, AssetUrls, getAssetLoader } from '../asset-loader/AssetLoader';
 import { WorkerMessageTypes } from '../worker/WorkerMessageTypes';
+import { createWorkerFromString } from '../utils/workerUtils';
+// @ts-ignore - Worker code imported as string via rollup
+import workerCode from '../worker/DeepFilterWorker.ts?worker-code';
 
 export interface WorkerConfig {
   name?: string;
@@ -58,7 +61,8 @@ export class WorkerManager {
       WorkerManager.workerReadyResolve = resolve;
     });
 
-    const worker = new Worker(new URL('./DeepFilterWorker.js', import.meta.url), {
+    // Use inline worker code to avoid bundler configuration issues
+    const worker = createWorkerFromString(workerCode, {
       type: this.config.type,
       name: this.config.name
     });
