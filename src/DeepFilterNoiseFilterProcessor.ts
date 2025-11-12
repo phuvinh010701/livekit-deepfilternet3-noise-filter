@@ -116,6 +116,10 @@ export class DeepFilterNoiseFilterProcessor implements TrackProcessor<Track.Kind
         this.destination.disconnect();
         this.destination = null;
       }
+      if (this.audioContext) {
+        this.audioContext.close();
+        this.audioContext = null;
+      }
     } catch {
       // Ignore disconnect errors
     }
