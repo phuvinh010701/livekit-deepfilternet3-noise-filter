@@ -1,5 +1,8 @@
 import { WorkerManager } from './manager/WorkerManager';
 import { WorkerMessageTypes } from './worker/WorkerMessageTypes';
+import { createWorkletModule } from './utils/workerUtils';
+// @ts-ignore - Worklet code imported as string via rollup
+import workletCode from './worklet/DeepFilterWorklet.ts?worklet-code';
 
 export interface DeepFilterNet3ProcessorConfig {
   sampleRate?: number;
@@ -46,8 +49,9 @@ export class DeepFilterNet3Processor {
   async createAudioWorkletNode(audioContext: AudioContext): Promise<AudioWorkletNode> {
     this.ensureInitialized();
     await WorkerManager.waitForWorkerReady();
-    const workletUrl = new URL('./DeepFilterWorklet.js', import.meta.url);
-    await audioContext.audioWorklet.addModule(workletUrl);
+
+    // Use inline worklet code to avoid bundler configuration issues
+    await createWorkletModule(audioContext, workletCode);
 
     return this.createWorkletNode(audioContext);
   }
