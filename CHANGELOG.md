@@ -1,3 +1,9 @@
+## [1.0.12](https://github.com/phuvinh010701/livekit-deepfilternet3-noise-filter/compare/v1.0.11...v1.0.12) (2025-11-12)
+
+### Bug Fixes
+
+* close audio context ([968fb3a](https://github.com/phuvinh010701/livekit-deepfilternet3-noise-filter/commit/968fb3a176cc09f010027c6c41f2d88a64a073cf))
+
 ## [1.0.11](https://github.com/phuvinh010701/livekit-deepfilternet3-noise-filter/compare/v1.0.10...v1.0.11) (2025-11-10)
 
 ### Bug Fixes
