@@ -1,3 +1,9 @@
+## [1.1.0](https://github.com/phuvinh010701/livekit-deepfilternet3-noise-filter/compare/v1.0.12...v1.1.0) (2025-11-19)
+
+### Features
+
+* move wasm into worketlet ([57316ea](https://github.com/phuvinh010701/livekit-deepfilternet3-noise-filter/commit/57316ea3df4764309290a2433e40d4e49c13fb36))
+
 ## [1.0.12](https://github.com/phuvinh010701/livekit-deepfilternet3-noise-filter/compare/v1.0.11...v1.0.12) (2025-11-12)
 
 ### Bug Fixes
