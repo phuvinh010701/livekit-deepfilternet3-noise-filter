@@ -1,96 +1,100 @@
-import { WorkerManager } from './manager/WorkerManager';
-import { WorkerMessageTypes } from './worker/WorkerMessageTypes';
+import { AssetLoader, getAssetLoader } from './asset-loader/AssetLoader';
 import { createWorkletModule } from './utils/workerUtils';
+import type { ProcessorAssets, DeepFilterNet3ProcessorConfig } from './interfaces';
+import { WorkletMessageTypes } from './constants';
 // @ts-ignore - Worklet code imported as string via rollup
 import workletCode from './worklet/DeepFilterWorklet.ts?worklet-code';
 
-export interface DeepFilterNet3ProcessorConfig {
-  sampleRate?: number;
-  noiseReductionLevel?: number;
-}
+export type { DeepFilterNet3ProcessorConfig };
 
 export class DeepFilterNet3Processor {
-  private workerManager: WorkerManager | null = null;
-
-  private rawSab: SharedArrayBuffer | null = null;
-  private denoisedSab: SharedArrayBuffer | null = null;
+  private assetLoader: AssetLoader;
+  private assets: ProcessorAssets | null = null;
+  private workletNode: AudioWorkletNode | null = null;
   private isInitialized = false;
   private bypassEnabled = false;
+  private config: DeepFilterNet3ProcessorConfig;
 
   constructor(config: DeepFilterNet3ProcessorConfig = {}) {
-    const { sampleRate = 48000, noiseReductionLevel = 50 } = config;
-
-    const bufferSize = sampleRate * 2;
-    this.rawSab = new SharedArrayBuffer(8 + (bufferSize + 1) * 4);
-    this.denoisedSab = new SharedArrayBuffer(8 + (bufferSize + 1) * 4);
-
-    this.workerManager = new WorkerManager({
-      name: 'DF3Worker',
-      type: 'classic',
-      suppressionLevel: noiseReductionLevel,
-      sampleRate,
-      rawSab: this.rawSab,
-      denoisedSab: this.denoisedSab
-    });
+    this.config = {
+      sampleRate: config.sampleRate ?? 48000,
+      noiseReductionLevel: config.noiseReductionLevel ?? 50,
+      assetConfig: config.assetConfig
+    };
+    this.assetLoader = getAssetLoader(config.assetConfig);
   }
 
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
-    if (!this.workerManager) {
-      throw new Error('WorkerManager not initialized');
-    }
+    // Fetch and compile WASM on main thread
+    const assetUrls = this.assetLoader.getAssetUrls();
+    const [wasmBytes, modelBytes] = await Promise.all([
+      this.assetLoader.fetchAsset(assetUrls.wasm),
+      this.assetLoader.fetchAsset(assetUrls.model)
+    ]);
 
-    await WorkerManager.getSharedAssets();
-    await this.workerManager.createWorkerFromBlob();
+    // Compile WASM module
+    const wasmModule = await WebAssembly.compile(wasmBytes);
+
+    this.assets = { wasmModule, modelBytes };
     this.isInitialized = true;
   }
 
   async createAudioWorkletNode(audioContext: AudioContext): Promise<AudioWorkletNode> {
     this.ensureInitialized();
-    await WorkerManager.waitForWorkerReady();
 
-    // Use inline worklet code to avoid bundler configuration issues
+    if (!this.assets) {
+      throw new Error('Assets not loaded');
+    }
+
     await createWorkletModule(audioContext, workletCode);
 
-    return this.createWorkletNode(audioContext);
+    this.workletNode = new AudioWorkletNode(audioContext, 'deepfilter-audio-processor', {
+      processorOptions: {
+        wasmModule: this.assets.wasmModule,
+        modelBytes: this.assets.modelBytes,
+        suppressionLevel: this.config.noiseReductionLevel
+      }
+    });
+
+    return this.workletNode;
   }
 
   setSuppressionLevel(level: number): void {
-    const worker = WorkerManager.getSharedWorker();
-    if (!worker || typeof level !== 'number' || isNaN(level)) return;
+    if (!this.workletNode || typeof level !== 'number' || isNaN(level)) return;
 
     const clampedLevel = Math.max(0, Math.min(100, Math.floor(level)));
-    worker.postMessage({
-      command: WorkerMessageTypes.SET_SUPPRESSION_LEVEL,
-      level: clampedLevel
+    this.workletNode.port.postMessage({
+      type: WorkletMessageTypes.SET_SUPPRESSION_LEVEL,
+      value: clampedLevel
     });
   }
 
   destroy(): void {
     if (!this.isInitialized) return;
 
-    WorkerManager.clearSharedWorker();
-    WorkerManager.cleanupAssets();
-    this.workerManager = null;
-    this.rawSab = null;
-    this.denoisedSab = null;
+    if (this.workletNode) {
+      this.workletNode.disconnect();
+      this.workletNode = null;
+    }
+
+    this.assets = null;
     this.isInitialized = false;
   }
 
   isReady(): boolean {
-    return this.isInitialized && WorkerManager.isWorkerReady();
+    return this.isInitialized && this.workletNode !== null;
   }
 
   setNoiseSuppressionEnabled(enabled: boolean): void {
-    const worker = WorkerManager.getSharedWorker();
-    if (!worker) return;
+    if (!this.workletNode) return;
 
     this.bypassEnabled = !enabled;
 
-    worker.postMessage({
-      command: WorkerMessageTypes.SET_BYPASS,
-      bypass: !enabled
+    this.workletNode.port.postMessage({
+      type: WorkletMessageTypes.SET_BYPASS,
+      value: !enabled
     });
   }
 
@@ -102,14 +106,5 @@ export class DeepFilterNet3Processor {
     if (!this.isInitialized) {
       throw new Error('Processor not initialized. Call initialize() first.');
     }
-  }
-
-  private createWorkletNode(audioContext: AudioContext): AudioWorkletNode {
-    return new AudioWorkletNode(audioContext, 'deepfilter-audio-processor', {
-      processorOptions: {
-        rawSab: this.rawSab,
-        denoisedSab: this.denoisedSab
-      }
-    });
   }
 }

@@ -1,15 +1,8 @@
 import { DeepFilterNet3Processor } from './DeepFilterNet3Processor';
 import type { TrackProcessor, AudioProcessorOptions, Track } from 'livekit-client';
-import { WorkerManager } from './manager/WorkerManager';
+import type { DeepFilterNoiseFilterOptions } from './interfaces';
 
-export interface DeepFilterNoiseFilterOptions {
-  sampleRate?: number;
-  frameSize?: number;
-  enableNoiseReduction?: boolean;
-  noiseReductionLevel?: number;
-  assetResolver?: unknown;
-  enabled?: boolean;
-}
+export type { DeepFilterNoiseFilterOptions };
 
 export class DeepFilterNoiseFilterProcessor implements TrackProcessor<Track.Kind.Audio, AudioProcessorOptions> {
   name = 'deepfilternet3-noise-filter';
@@ -33,7 +26,7 @@ export class DeepFilterNoiseFilterProcessor implements TrackProcessor<Track.Kind
   }
 
   static isSupported(): boolean {
-    return typeof AudioContext !== 'undefined' && typeof SharedArrayBuffer !== 'undefined';
+    return typeof AudioContext !== 'undefined' && typeof WebAssembly !== 'undefined';
   }
 
   init = async (opts: { track?: MediaStreamTrack; mediaStreamTrack?: MediaStreamTrack }): Promise<void> => {
@@ -89,7 +82,6 @@ export class DeepFilterNoiseFilterProcessor implements TrackProcessor<Track.Kind
     }
 
     await this.processor.initialize();
-    await WorkerManager.waitForWorkerReady();
     const node = await this.processor.createAudioWorkletNode(this.audioContext);
 
     this.sourceNode = this.audioContext.createMediaStreamSource(new MediaStream([this.originalTrack]));
@@ -117,7 +109,7 @@ export class DeepFilterNoiseFilterProcessor implements TrackProcessor<Track.Kind
         this.destination = null;
       }
       if (this.audioContext) {
-        this.audioContext.close();
+        void this.audioContext.close();
         this.audioContext = null;
       }
     } catch {
