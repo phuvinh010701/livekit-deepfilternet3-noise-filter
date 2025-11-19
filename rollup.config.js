@@ -9,25 +9,19 @@ import { dirname, resolve } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Custom plugin to import worker/worklet files as strings
-function workerAsString() {
+// Custom plugin to import worklet files as strings
+function workletAsString() {
   return {
-    name: 'worker-as-string',
+    name: 'worklet-as-string',
     resolveId(id) {
-      if (id.includes('?worker-code') || id.includes('?worklet-code')) {
+      if (id.includes('?worklet-code')) {
         return id;
       }
       return null;
     },
     load(id) {
-      if (id.includes('?worker-code') || id.includes('?worklet-code')) {
-        const filePath = id.split('?')[0];
-        const fullPath = resolve(__dirname, filePath);
-
-        // For worker/worklet code, we need to compile it first to JS
-        // We'll reference the already-built version from dist
-        const isWorker = id.includes('?worker-code');
-        const distFile = isWorker ? 'dist/DeepFilterWorker.js' : 'dist/DeepFilterWorklet.js';
+      if (id.includes('?worklet-code')) {
+        const distFile = 'dist/DeepFilterWorklet.js';
         const distPath = resolve(__dirname, distFile);
 
         try {
@@ -35,7 +29,7 @@ function workerAsString() {
           // Return the code as a string export
           return `export default ${JSON.stringify(code)};`;
         } catch (e) {
-          // During initial build, the dist files don't exist yet
+          // During initial build, the dist file doesn't exist yet
           // Return a placeholder that will be updated in a second build pass
           console.warn(`Warning: ${distFile} not found. You may need to run build twice.`);
           return `export default '';`;
@@ -47,27 +41,7 @@ function workerAsString() {
 }
 
 export default [
-  // Worker bundle - Build this first
-  {
-    input: 'src/worker/DeepFilterWorker.ts',
-    output: {
-      file: 'dist/DeepFilterWorker.js',
-      format: 'iife',
-      sourcemap: false,
-    },
-    plugins: [
-      nodeResolve(),
-      commonjs(),
-      typescript({
-        tsconfig: './tsconfig.json',
-        declaration: false,
-        sourceMap: false,
-        target: 'ES2020',
-      }),
-    ],
-  },
-
-  // Worklet bundle - Build this second
+  // Worklet bundle - Build this first
   {
     input: 'src/worklet/DeepFilterWorklet.ts',
     output: {
@@ -87,7 +61,7 @@ export default [
     ],
   },
 
-  // Main library bundle - Build this third (after worker files exist)
+  // Main library bundle - Build this second (after worklet file exists)
   {
     input: 'src/index.ts',
     output: [
@@ -104,7 +78,7 @@ export default [
     ],
     external: ['livekit-client'],
     plugins: [
-      workerAsString(), // Load worker/worklet files as strings
+      workletAsString(), // Load worklet file as string
       nodeResolve(),
       commonjs(),
       typescript({

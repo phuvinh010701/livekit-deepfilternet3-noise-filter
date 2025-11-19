@@ -6,6 +6,3 @@ export type { DeepFilterNoiseFilterOptions } from './DeepFilterNoiseFilterProces
 
 export { AssetLoader, getAssetLoader } from './asset-loader/AssetLoader';
 export type { AssetConfig } from './asset-loader/AssetLoader';
-
-export { WorkerMessageTypes } from './worker/WorkerMessageTypes';
-export type { WorkerMessageType } from './worker/WorkerMessageTypes';

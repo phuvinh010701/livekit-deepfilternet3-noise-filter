@@ -1,25 +1,16 @@
-export interface AssetConfig {
-  cdnUrl?: string;
-  version?: string;
-}
+import type { AssetConfig, AssetUrls } from '../interfaces';
 
-export interface AssetUrls {
-  wasm: string;
-  model: string;
-}
+export type { AssetConfig, AssetUrls };
 
 export class AssetLoader {
-  private readonly packageName = 'deepfilternet3-workers';
-  private readonly version: string;
   private readonly cdnUrl: string;
 
   constructor(config: AssetConfig = {}) {
-    this.cdnUrl = config.cdnUrl ?? 'https://cdn.jsdelivr.net/npm';
-    this.version = config.version ?? 'latest';
+    this.cdnUrl = config.cdnUrl ?? 'https://cdn.laptrinhai.id.vn/deepfilternet3';
   }
 
   private getCdnUrl(relativePath: string): string {
-    return `${this.cdnUrl}/${this.packageName}@${this.version}/dist/${relativePath}`;
+    return `${this.cdnUrl}/${relativePath}`;
   }
 
   getAssetUrls(): AssetUrls {

@@ -14,11 +14,13 @@
     }
   },
   "files": [
-    "dist",
+    "dist/index.js",
+    "dist/index.esm.js",
+    "dist/index.d.ts",
     "README.md"
   ],
   "scripts": {
-    "build": "rollup -c",
+    "build": "rollup -c && node --input-type=module -e \"import { unlinkSync } from 'fs'; unlinkSync('dist/DeepFilterWorklet.js');\"",
     "dev": "tsc --watch",
     "prepublishOnly": "yarn build",
     "type-check": "tsc --noEmit",
