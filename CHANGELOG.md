@@ -1,3 +1,9 @@
+## [1.1.1](https://github.com/phuvinh010701/livekit-deepfilternet3-noise-filter/compare/v1.1.0...v1.1.1) (2025-11-20)
+
+### Bug Fixes
+
+* add assetConfig option to DeepFilterNoiseFilterOptions ([b2b584f](https://github.com/phuvinh010701/livekit-deepfilternet3-noise-filter/commit/b2b584fe4d49a4fe8250562a2ee537cd85fa5777))
+
 ## [1.1.0](https://github.com/phuvinh010701/livekit-deepfilternet3-noise-filter/compare/v1.0.12...v1.1.0) (2025-11-19)
 
 ### Features
