@@ -18,7 +18,8 @@ export class DeepFilterNoiseFilterProcessor implements TrackProcessor<Track.Kind
   constructor(options: DeepFilterNoiseFilterOptions = {}) {
     const cfg = {
       sampleRate: options.sampleRate ?? 48000,
-      noiseReductionLevel: options.noiseReductionLevel ?? 80
+      noiseReductionLevel: options.noiseReductionLevel ?? 80,
+      assetConfig: options.assetConfig
     };
 
     this.enabled = options.enabled ?? true;
