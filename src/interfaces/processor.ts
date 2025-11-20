@@ -16,6 +16,6 @@ export interface DeepFilterNoiseFilterOptions {
   frameSize?: number;
   enableNoiseReduction?: boolean;
   noiseReductionLevel?: number;
-  assetResolver?: unknown;
+  assetConfig?: AssetConfig;
   enabled?: boolean;
 }
