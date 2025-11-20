@@ -2,6 +2,8 @@
 
 AI-powered noise suppression for real-time audio processing with LiveKit.
 
+Based on the [DeepFilterNet](https://github.com/Rikorose/DeepFilterNet) paper and implementation by Rikorose.
+
 ## Installation
 
 ```bash
@@ -109,25 +111,22 @@ import { DeepFilterNoiseFilterProcessor } from 'deepfilternet3-noise-filter';
 const filter = new DeepFilterNoiseFilterProcessor({
   sampleRate: 48000,
   noiseReductionLevel: 80,
-  enabled: true
+  enabled: true,
+  assetConfig: {
+    cdnUrl: 'https://cdn.laptrinhai.id.vn/deepfilternet3' // Optional: use custom CDN
+  }
 });
 
-// Initialize with track (LiveKit pattern)
-await filter.init({ track: audioTrack });
-
 // Use with LiveKit
-audioTrack.setProcessor(filter);
+await audioTrack.setProcessor(filter);
+await room.localParticipant.publishTrack(audioTrack);
 
 // Control noise reduction
 filter.setSuppressionLevel(60);
 filter.setEnabled(false); // Disable temporarily
 ```
 
-### Browser requirements
-
-SharedArrayBuffer requires:
-- `Cross-Origin-Opener-Policy: same-origin`
-- `Cross-Origin-Embedder-Policy: require-corp`
+For a complete React example, see: [DeepFilterNet3 React Example](https://github.com/phuvinh010701/DeepFilterNet3-React-Example)
 
 ### Build
 
@@ -141,8 +140,13 @@ Outputs:
 
 ### Model source
 
-The included model archive `DeepFilterNet3_onnx.tar.gz` is downloaded from the DeepFilterNet project:
+This package is based on [DeepFilterNet](https://github.com/Rikorose/DeepFilterNet) by Rikorose.
 
+**Original Paper:**
+- Schröter, H., Rosenkranz, T., Escalante-B., A.N., & Maier, A. (2022). DeepFilterNet: A Low Complexity Speech Enhancement Framework for Full-Band Audio based on Deep Filtering. *ICASSP 2022 - 2022 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*, 7407-7411.
+- [Paper on arXiv](https://arxiv.org/abs/2110.05588)
+
+The included model archive `DeepFilterNet3_onnx.tar.gz` is from:
 - [DeepFilterNet3_onnx.tar.gz](https://github.com/Rikorose/DeepFilterNet/blob/main/models/DeepFilterNet3_onnx.tar.gz)
 
 Please refer to the upstream repository for licensing and updates.
