@@ -19,7 +19,8 @@ export class DeepFilterNoiseFilterProcessor implements TrackProcessor<Track.Kind
     const cfg = {
       sampleRate: options.sampleRate ?? 48000,
       noiseReductionLevel: options.noiseReductionLevel ?? 80,
-      assetConfig: options.assetConfig
+      assetConfig: options.assetConfig,
+      dynamicSuppression: options.dynamicSuppression ?? false
     };
 
     this.enabled = options.enabled ?? true;
@@ -60,6 +61,14 @@ export class DeepFilterNoiseFilterProcessor implements TrackProcessor<Track.Kind
 
   isNoiseSuppressionEnabled(): boolean {
     return this.processor.isNoiseSuppressionEnabled();
+  }
+
+  setDynamicSuppression(enabled: boolean): void {
+    this.processor.setDynamicSuppression(enabled);
+  }
+
+  isDynamicSuppressionEnabled(): boolean {
+    return this.processor.isDynamicSuppressionEnabled();
   }
 
   destroy = async (): Promise<void> => {

@@ -9,6 +9,7 @@ export interface DeepFilterNet3ProcessorConfig {
   sampleRate?: number;
   noiseReductionLevel?: number;
   assetConfig?: AssetConfig;
+  dynamicSuppression?: boolean;
 }
 
 export interface DeepFilterNoiseFilterOptions {
@@ -18,4 +19,5 @@ export interface DeepFilterNoiseFilterOptions {
   noiseReductionLevel?: number;
   assetConfig?: AssetConfig;
   enabled?: boolean;
+  dynamicSuppression?: boolean;
 }

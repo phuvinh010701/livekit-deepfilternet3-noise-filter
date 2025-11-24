@@ -38,6 +38,44 @@ src.connect(node).connect(dst);
 
 // Adjust noise reduction level (0-100)
 proc.setSuppressionLevel(50);
+
+// Enable dynamic suppression (automatically adjusts based on audio content)
+proc.setDynamicSuppression(true);
+```
+
+### Dynamic Noise Suppression
+
+The library now includes an intelligent **dynamic suppression** feature that automatically adjusts the noise reduction level based on real-time audio characteristics. This prevents the common issue where a fixed suppression level is too aggressive during speech, causing voice interruption.
+
+```javascript
+import { DeepFilterNet3Processor } from 'deepfilternet3-noise-filter';
+
+const proc = new DeepFilterNet3Processor({
+  sampleRate: 48000,
+  noiseReductionLevel: 50, // Base level for manual mode
+  dynamicSuppression: true  // Enable dynamic mode
+});
+
+await proc.initialize();
+const node = await proc.createAudioWorkletNode(ctx);
+
+// Toggle dynamic suppression at runtime
+proc.setDynamicSuppression(true);  // Enable adaptive mode
+proc.isDynamicSuppressionEnabled(); // Check status
+```
+
+**How it works:**
+- Analyzes audio in real-time using RMS energy, zero-crossing rate, and spectral characteristics
+- Detects speech vs. noise patterns
+- Applies higher suppression (80-95) during silence/noise
+- Applies moderate suppression (30-60) during active speech to preserve voice quality
+- Smoothly transitions between levels to avoid artifacts
+
+**When to use:**
+- ✅ **Dynamic mode**: For environments with varying noise levels (cafes, offices, outdoor)
+- ✅ **Dynamic mode**: When voice quality is critical and noise varies
+- ✅ **Fixed mode**: When you need consistent suppression (constant background noise)
+- ✅ **Fixed mode**: When you want full control over the suppression level
 ```
 
 ### React Example
@@ -107,10 +145,11 @@ Worker and worklet files are automatically inlined as blob URLs, so **no webpack
 ```javascript
 import { DeepFilterNoiseFilterProcessor } from 'deepfilternet3-noise-filter';
 
-// Create the processor
+// Create the processor with dynamic suppression
 const filter = new DeepFilterNoiseFilterProcessor({
   sampleRate: 48000,
-  noiseReductionLevel: 80,
+  noiseReductionLevel: 60,  // Base level when not in dynamic mode
+  dynamicSuppression: true,  // Enable adaptive noise reduction
   enabled: true,
   assetConfig: {
     cdnUrl: 'https://cdn.laptrinhai.id.vn/deepfilternet3' // Optional: use custom CDN
@@ -122,8 +161,10 @@ await audioTrack.setProcessor(filter);
 await room.localParticipant.publishTrack(audioTrack);
 
 // Control noise reduction
-filter.setSuppressionLevel(60);
-filter.setEnabled(false); // Disable temporarily
+filter.setSuppressionLevel(60);        // Set manual level
+filter.setDynamicSuppression(true);    // Enable adaptive mode
+filter.isDynamicSuppressionEnabled();  // Check if dynamic mode is on
+filter.setEnabled(false);              // Disable temporarily
 ```
 
 For a complete React example, see: [DeepFilterNet3 React Example](https://github.com/phuvinh010701/DeepFilterNet3-React-Example)

@@ -19,7 +19,8 @@ export class DeepFilterNet3Processor {
     this.config = {
       sampleRate: config.sampleRate ?? 48000,
       noiseReductionLevel: config.noiseReductionLevel ?? 50,
-      assetConfig: config.assetConfig
+      assetConfig: config.assetConfig,
+      dynamicSuppression: config.dynamicSuppression ?? false
     };
     this.assetLoader = getAssetLoader(config.assetConfig);
   }
@@ -54,7 +55,8 @@ export class DeepFilterNet3Processor {
       processorOptions: {
         wasmModule: this.assets.wasmModule,
         modelBytes: this.assets.modelBytes,
-        suppressionLevel: this.config.noiseReductionLevel
+        suppressionLevel: this.config.noiseReductionLevel,
+        dynamicSuppression: this.config.dynamicSuppression
       }
     });
 
@@ -100,6 +102,20 @@ export class DeepFilterNet3Processor {
 
   isNoiseSuppressionEnabled(): boolean {
     return !this.bypassEnabled;
+  }
+
+  setDynamicSuppression(enabled: boolean): void {
+    if (!this.workletNode) return;
+
+    this.config.dynamicSuppression = enabled;
+    this.workletNode.port.postMessage({
+      type: WorkletMessageTypes.SET_DYNAMIC_SUPPRESSION,
+      value: enabled
+    });
+  }
+
+  isDynamicSuppressionEnabled(): boolean {
+    return this.config.dynamicSuppression ?? false;
   }
 
   private ensureInitialized(): void {
