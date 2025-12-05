@@ -1,4 +1,18 @@
-> **Note:** This repository has been moved to [mezonai/mezon-noise-suppression](https://github.com/mezonai/mezon-noise-suppression). The npm package name remains `deepfilternet3-noise-filter` for backward compatibility.
+
+
+---
+
+## 🚀 Repository Moved
+
+> **⚠️ IMPORTANT:** This repository has been moved to the **MezonAI** organization.
+>
+> **New Repository:** [mezonai/mezon-noise-suppression](https://github.com/mezonai/mezon-noise-suppression)
+>
+> The npm package name remains **`deepfilternet3-noise-filter`** for backward compatibility.
+> Please update your repository references and starred repositories accordingly.
+
+---
+
 
 # DeepFilterNet3 Noise Filter for LiveKit
 
